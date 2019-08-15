@@ -187,6 +187,7 @@
     <AndroidResource Include="Resources\drawable\icn_reorder.png" />
     <AndroidResource Include="Resources\drawable\icn_reorders.png" />
     <AndroidResource Include="Resources\drawable\icns_reorder.png" />
+    <AndroidResource Include="Resources\drawable\icns_reorder2.png" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Activities\" />
