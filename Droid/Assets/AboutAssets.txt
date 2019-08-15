@@ -1,0 +1,226 @@
+﻿ 
+
+
+
+---
+https://forums.xamarin.com/discussion/102649/drag-and-drop-listview-cell-reordering-for-xamarin-android
+https://forums.xamarin.com/discussion/106831/reorder-list-view-items-with-drag-and-drop
+---
+
+ReOrder the list items by drag and drop in xamarin android using RecyclerView
+
+Brief: Explanation with simple steps to re order the listed items by long press, drag and drop by using recycler view in xamarin,android.   
+
+[Image]
+
+In my previous post explained
+
+Description: If you are looking for requirement of re arranging list items based on the some priority then you are in the right place 
+and here you can go through the example. Lets get in to the steps,
+
+steps 1: Create the new xamarin native project and add the required packages.
+
+Xamarin.Android.Support.v4
+Xamarin.Android.Support.v7
+
+On installation of above packages it will install all the required child packages.
+
+Step 2: Create the UI
+
+Add new layout file one for recycler view and another one to dispay custom row item. 
+
+Main.axml
+---------
+
+In my example considered displaying quiz question with answer requiring to set the item in correct order.
+
+CustomListItemReorder.axml
+-------
+
+Step 3: Add Interfaces
+
+Need to add two interface to deifne touch and drag
+
+1. IOnStartDragListener.cs 
+ 
+ OnStartDrag : Called when a view is requesting a start of a drag and accepts viewHolder of the recycler view to drag.
+
+----------
+using Android.Support.V7.Widget;
+
+namespace NativeCodeLog.Droid
+{
+    public interface IOnStartDragListener
+    { 
+        void OnStartDrag(RecyclerView.ViewHolder viewHolder);
+    }
+}
+-----------
+2. ITemTouchHelperAdapter.cs 
+
+OnItemMove : Called when an item has been dragged far enough to trigger a move. This is called every time an item is shifted, and not at the end of a "drop" event. 
+OnItemDismiss:Called when an item has been dismissed by a swipe
+
+-------------
+namespace NativeCodeLog.Droid
+{
+    public interface ITemTouchHelperAdapter
+    {
+        /** 
+        * @param fromPosition The start position of the moved item.
+        * @param toPosition   Then resolved position of the moved item.
+        * @return True if the item was moved to the new adapter position. 
+        */  
+        bool OnItemMove(int fromPosition, int toPosition);
+ 
+        /**  
+         * @param position The position of the item dismissed. 
+         * @see RecyclerView#getAdapterPositionFor(RecyclerView.ViewHolder)
+         * @see RecyclerView.ViewHolder#getAdapterPosition()
+         */ 
+        void OnItemDismiss(int position);
+    }
+}
+    -----------
+
+Step 4: Add ItemTouchHelperCallback Class
+
+Create new class SimpleItemTouchHelperCallback by inheriting from ItemTouchHelper.Callback
+
+Here overriden below three methods provided by the ItemTouchHelper.Callback base class
+1.GetMovementFlags : To update the touch movement state 
+2.OnMove : To Notify the adapter of the moved position
+3.OnSwiped  : To Notify the adapter of the dismissal
+--------
+using Android.Support.V7.Widget.Helper;
+using Android.Support.V7.Widget;
+
+namespace NativeCodeLog.Droid
+{
+    public class SimpleItemTouchHelperCallback : ItemTouchHelper.Callback
+    {
+        private readonly ITemTouchHelperAdapter _mAdapter;
+
+        public SimpleItemTouchHelperCallback(ITemTouchHelperAdapter adapter)
+        {
+            _mAdapter = adapter;
+        }
+
+        public override int GetMovementFlags(RecyclerView recyclerView, RecyclerView.ViewHolder viewHolder)
+        {
+            const int dragFlags = ItemTouchHelper.Up | ItemTouchHelper.Down;
+            const int swipeFlags = ItemTouchHelper.ActionStateIdle;
+            return MakeMovementFlags(dragFlags, swipeFlags);
+        }
+
+        public override bool OnMove(RecyclerView recyclerView, RecyclerView.ViewHolder viewHolder, RecyclerView.ViewHolder target)
+        {
+            if (viewHolder.ItemViewType != target.ItemViewType)
+            {
+                return false;
+            }
+
+            // Notify the adapter of the move
+            _mAdapter.OnItemMove(viewHolder.AdapterPosition, target.AdapterPosition);
+            return true;
+        }
+
+        public override void OnSwiped(RecyclerView.ViewHolder viewHolder, int direction)
+        {
+            // Notify the adapter of the dismissal
+            _mAdapter.OnItemDismiss(viewHolder.AdapterPosition);
+        }
+    }
+}
+
+-------------------
+
+Step 5: Create Adapter and view holder Class
+
+Here ReOrderAdapters implemented ITemTouchHelperAdapter for the above mentioned functionality and IOnLongClickListener
+to listen to the long click event.
+
+using Android.Views;
+using System.Collections.ObjectModel;
+using Android.Support.V7.Widget; 
+using Android.Widget;
+using static Android.Views.View;
+
+namespace NativeCodeLog.Droid
+{
+    public class ReOrderAdapters : RecyclerView.Adapter, ITemTouchHelperAdapter, IOnLongClickListener
+    {
+        private readonly ObservableCollection<string> _itemList;
+        private readonly IOnStartDragListener _mDragStartListener;
+        private ReOrderViewHolder _reOrderViewHolder;
+
+        public ReOrderAdapters(ObservableCollection<string> list, IOnStartDragListener mDragStartListener)
+        {
+            _itemList = list;
+            _mDragStartListener = mDragStartListener;
+        }
+
+        public override int ItemCount => _itemList.Count;
+
+        public override void OnBindViewHolder(RecyclerView.ViewHolder holder, int position)
+        {
+            var viewHolder = holder as ReOrderViewHolder;
+            if (viewHolder == null) return;
+
+            _reOrderViewHolder = viewHolder;
+            viewHolder.ReorderView.SetOnLongClickListener(this);
+            viewHolder.ResourceName.Text = (_itemList[position]); 
+        }
+
+        public override RecyclerView.ViewHolder OnCreateViewHolder(ViewGroup parent, int viewType)
+        {
+            var inflater = LayoutInflater.From(parent.Context);
+            var itemView = inflater.Inflate(Resource.Layout.CustomListItemReorder, parent, false);
+            return new ReOrderViewHolder(itemView);
+        }
+
+        public void OnItemDismiss(int position)
+        {
+            var item = _itemList[position];
+            _itemList.Remove(item);
+            NotifyItemRemoved(position);
+        }
+
+        public bool OnItemMove(int fromPosition, int toPosition)
+        {
+            var tempPlanResource = _itemList[fromPosition];
+            _itemList[fromPosition] = _itemList[toPosition];
+            _itemList[toPosition] = tempPlanResource;
+
+            ReOrderActivity.ResourceList = _itemList;
+            NotifyItemMoved(fromPosition, toPosition);
+            return true;
+        }
+
+        public bool OnLongClick(View v)
+        {
+            _mDragStartListener.OnStartDrag(_reOrderViewHolder);
+            return true;
+        }
+    }
+
+    public class ReOrderViewHolder : RecyclerView.ViewHolder
+    { 
+        public LinearLayout ReorderView;
+        public ImageView ReorderIcon;
+        public TextView ResourceName; 
+
+        public ReOrderViewHolder(View view) : base(view)
+        {
+            ResourceName = view.FindViewById<TextView>(Resource.Id.mTVResourceName);
+            ReorderView = view.FindViewById<LinearLayout>(Resource.Id.ReorderView);
+            ReorderIcon = view.FindViewById<ImageView>(Resource.Id.mTvReorderIcon); 
+        }
+    } 
+}
+
+Step 6:  Add Activity Class
+
+
+
+
