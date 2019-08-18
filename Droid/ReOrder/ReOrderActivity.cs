@@ -6,7 +6,7 @@ using Android.Support.V7.Widget.Helper;
 
 namespace NativeCodeLog.Droid
 {
-    [Activity(Label = "ReOrderListItem")]
+    [Activity(Label = "ReOrderList")]
     public class ReOrderActivity : Activity, IOnStartDragListener
     { 
         private ItemTouchHelper _mItemTouchHelper;
